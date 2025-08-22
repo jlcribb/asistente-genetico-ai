@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asistente Genético AI</title>
+    <!-- Tailwind CSS para un diseño moderno y limpio -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Biblioteca para renderizar Markdown (para las respuestas del AI) -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Iconos de Lucide (versión para JavaScript puro) -->
+    <script src="https://unpkg.com/lucide@0.378.0/dist/umd/lucide.min.js"></script>
+    <!-- Biblioteca para convertir HTML a Canvas (para exportar a imagen) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        /* Estilo para la fuente Inter, agradable a la vista */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body, html {
+            font-family: 'Inter', sans-serif;
+            height: 100%;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        /* Pequeño ajuste para la barra de desplazamiento */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        /* Estilo para el estado de carga */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Estilos para el botón de idioma activo */
+        .lang-btn.active {
+            background-color: #3b82f6;
+            color: white;
+        }
+        /* Estilos para las opciones de autoevaluación */
+        .assessment-list {
+            list-style: none !important;
+            padding-left: 0 !important;
+        }
+        .assessment-list li {
+            padding-left: 0 !important;
+        }
+        .assessment-list li::before {
+            content: none !important;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800">
+
+    <!-- Encabezado Principal de la Aplicación -->
+    <header id="app-header" class="bg-white shadow-md p-3 flex justify-between items-center text-sm text-slate-700 font-semibold">
+        <span id="header-title">UNaM - UNNE - Maestría en Tecnologías de la Información - Inteligencia Artificial</span>
+        <div id="lang-switcher" class="flex items-center gap-2">
+            <span id="lang-label">Idioma:</span>
+            <button id="lang-es" class="lang-btn px-3 py-1 text-xs font-bold rounded-md transition-colors active">ES</button>
+            <button id="lang-en" class="lang-btn px-3 py-1 text-xs font-bold rounded-md transition-colors">EN</button>
+        </div>
+    </header>
+
+    <!-- Contenedor Principal de la App -->
+    <div id="app-container" class="main-container">
+        <!-- Barra lateral de navegación -->
+        <aside class="bg-white w-72 flex-shrink-0 p-6 flex flex-col justify-between shadow-lg overflow-y-auto">
+            <div>
+                <div id="logo-container" class="flex items-center gap-3 mb-6">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><path d="M10.2,16.2c-1.2-1.2-1.2-3.1,0-4.2s3.1-1.2,4.2,0"></path><path d="M14.5,10.5c1.2,1.2,1.2,3.1,0,4.2s-3.1,1.2-4.2,0"></path><path d="M12,9.8V7.5"></path><path d="M12,16.5v2.2"></path><path d="M14.2,11.5h2.2"></path><path d="M7.5,12.5H9.8"></path></svg>
+                    <h1 id="app-title" class="text-xl font-bold text-slate-900">Asistente Genético</h1>
+                </div>
+                <nav id="nav-menu" class="space-y-1">
+                    <!-- El menú ahora se genera con secciones -->
+                </nav>
+            </div>
+        </aside>
+
+        <!-- Contenido principal -->
+        <main class="flex-1 p-8 overflow-y-auto">
+            <div id="content-container">
+                <!-- El contenido de los módulos se mostrará aquí -->
+            </div>
+        </main>
+    </div>
+    
+    <!-- Pie de Página -->
+    <footer id="app-footer" class="bg-slate-200 p-2 text-center text-xs text-slate-600 font-medium">
+        2025 - jlCribbLibardi
+    </footer>
+
+    <script type="module">
+        document.addEventListener('DOMContentLoaded', () => {
+            let currentLanguage = 'es';
+            let currentModuleId = 'asistente';
+            const navMenu = document.getElementById('nav-menu');
+            const contentContainer = document.getElementById('content-container');
+
+            const i18n = {
+                es: {
+                    headerTitle: "UNaM - UNNE - Maestría en Tecnologías de la Información - Inteligencia Artificial",
+                    langLabel: "Idioma:",
+                    appTitle: "Asistente Genético",
+                    submitButton: "Generar Resultado",
+                    loadingText: "Procesando, por favor espere...",
+                    responseTitle: "Respuesta del Asistente AI",
+                    emptyResponse: "La respuesta del asistente aparecerá aquí.",
+                    emptyInputError: "Por favor, complete todos los campos de entrada.",
+                    exportAlert: "No hay contenido para exportar. Por favor, genere una respuesta primero.",
+                    disclaimer: "Gemini puede cometer errores, así que verifica las respuestas.",
+                    printTitle: "Imprimir Resultado",
+                    exportPngTitle: "Exportar como PNG",
+                    exportJpgTitle: "Exportar como JPG",
+                    section_assistance_title: "🧠 Asistencia y Soporte Inteligente",
+                    section_analysis_title: "🧪 Herramientas de Evaluación y Análisis",
+                    section_query_title: "🧬 Consulta de Información Biomolecular",
+                    section_education_title: "📚 Materiales Educativos y Referenciales",
+                    asistente_title: "Asistente Virtual de Genética",
+                    asistente_desc: "Responda preguntas frecuentes de genética.",
+                    asistente_input_label: "Su pregunta",
+                    asistente_placeholder: "Escriba aquí su consulta...",
+                    evaluador_title: "Evaluador Preliminar",
+                    evaluador_desc: "Estime si un paciente debe ser referido a genética clínica.",
+                    evaluador_summary_label: "Resumen Clínico",
+                    evaluador_summary_placeholder: "Ej: Paciente de 5 años con hipotonía...",
+                    evaluador_history_label: "Antecedentes Familiares",
+                    evaluador_history_placeholder: "Ej: Padres no consanguíneos...",
+                    interprete_title: "Intérprete de Reportes Genéticos",
+                    interprete_desc: "Convierta un reporte de laboratorio en un resumen entendible.",
+                    interprete_input_label: "Pegue el contenido del reporte (VCF, texto, etc.)",
+                    interprete_placeholder: "##fileformat=VCFv4.2...",
+                    simulador_title: "Simulador de Consejería Genética",
+                    simulador_desc: "Entrene habilidades de comunicación en escenarios de consejo genético.",
+                    simulador_scenario_label: "Seleccione un Escenario",
+                    simulador_message_label: "Su primera frase",
+                    simulador_message_placeholder: "Ej: Hola, gracias por venir...",
+                    reuniones_title: "Apoyo en Reuniones",
+                    reuniones_desc: "Responda preguntas contextuales sobre genes y síndromes.",
+                    reuniones_input_label: "Su pregunta",
+                    reuniones_placeholder: "Escriba aquí su consulta...",
+                    generador_title: "Generador de Informes",
+                    generador_desc: "Redacte cartas para pacientes a partir de reportes técnicos.",
+                    generador_clinical_label: "Datos Clínicos Relevantes",
+                    generador_clinical_placeholder: "Ej: Paciente: Juan Pérez, 32 años...",
+                    generador_molecular_label: "Resultado Molecular (Técnico)",
+                    generador_molecular_placeholder: "Ej: Gen: CFTR. Variante: c.1521_1523delCTT...",
+                    genes_title: "Genes",
+                    genes_desc: "Busque información detallada sobre un gen específico.",
+                    genes_input_label: "Símbolo del Gen (ej. CFTR)",
+                    genes_placeholder: "Ingrese el símbolo oficial del gen...",
+                    proteinas_title: "Proteínas",
+                    proteinas_desc: "Busque información sobre una proteína, sus dominios y variantes.",
+                    proteinas_input_label: "Nombre de la Proteína o ID de UniProt",
+                    proteinas_placeholder: "Ingrese el nombre de la proteína...",
+                    vias_de_señalizacion_title: "Vías de señalización",
+                    vias_de_señalizacion_desc: "Explore vías de señalización metabólicas y los genes involucrados.",
+                    vias_de_señalizacion_input_label: "Gen o Vía de Señalización",
+                    vias_de_señalizacion_placeholder: "Ingrese un gen (ej. AKT1) o una vía (ej. MAPK signaling pathway)...",
+                    glosario_title: "Glosario Genético Interactivo",
+                    glosario_desc: "Defina términos genéticos complejos de forma sencilla.",
+                    glosario_input_label: "Término a definir",
+                    glosario_placeholder: "Ingrese un término genético...",
+                    autoevaluacion_title: "Autoevaluación",
+                    autoevaluacion_button: "Generar Autoevaluación",
+                    autoevaluacion_desc: "Pon a prueba tus conocimientos sobre el tema consultado.",
+                    print_quiz_button: "Imprimir Cuestionario"
+                },
+                en: {
+                    headerTitle: "UNaM - UNNE - Master's in Information Technology - Artificial Intelligence",
+                    langLabel: "Language:",
+                    appTitle: "Genetic Assistant",
+                    submitButton: "Generate Result",
+                    loadingText: "Processing, please wait...",
+                    responseTitle: "Response from the AI Assistant",
+                    emptyResponse: "The assistant's response will appear here.",
+                    emptyInputError: "Please fill in all input fields.",
+                    exportAlert: "There is no content to export. Please generate a response first.",
+                    disclaimer: "Gemini can make mistakes, so please double-check its responses.",
+                    printTitle: "Print Result",
+                    exportPngTitle: "Export as PNG",
+                    exportJpgTitle: "Export as JPG",
+                    section_assistance_title: "🧠 Intelligent Assistance & Support",
+                    section_analysis_title: "🧪 Evaluation & Analysis Tools",
+                    section_query_title: "🧬 Biomolecular Information Query",
+                    section_education_title: "📚 Educational & Reference Materials",
+                    asistente_title: "Virtual Genetic Assistant",
+                    asistente_desc: "Answer frequently asked questions about genetics.",
+                    asistente_input_label: "Your question",
+                    asistente_placeholder: "Type your query here...",
+                    evaluador_title: "Preliminary Evaluator",
+                    evaluador_desc: "Estimate if a patient should be referred to clinical genetics.",
+                    evaluador_summary_label: "Clinical Summary",
+                    evaluador_summary_placeholder: "e.g., 5-year-old patient with hypotonia...",
+                    evaluador_history_label: "Family History",
+                    evaluador_history_placeholder: "e.g., Non-consanguineous parents...",
+                    interprete_title: "Genetic Report Interpreter",
+                    interprete_desc: "Turn a lab report into an understandable summary.",
+                    interprete_input_label: "Paste the report content (VCF, text, etc.)",
+                    interprete_placeholder: "##fileformat=VCFv4.2...",
+                    simulador_title: "Genetic Counseling Simulator",
+                    simulador_desc: "Train communication skills in genetic counseling scenarios.",
+                    simulador_scenario_label: "Select a Scenario",
+                    simulador_message_label: "Your opening line",
+                    simulador_message_placeholder: "e.g., Hello, thanks for coming in...",
+                    reuniones_title: "Meeting Support",
+                    reuniones_desc: "Answer contextual questions about genes and syndromes.",
+                    reuniones_input_label: "Your question",
+                    reuniones_placeholder: "Type your query here...",
+                    generador_title: "Report Generator",
+                    generador_desc: "Draft letters for patients from technical reports.",
+                    generador_clinical_label: "Relevant Clinical Data",
+                    generador_clinical_placeholder: "e.g., Patient: John Doe, 32 years old...",
+                    generador_molecular_label: "Molecular Result (Technical)",
+                    generador_molecular_placeholder: "e.g., Gene: CFTR. Variant: c.1521_1523delCTT...",
+                    genes_title: "Genes",
+                    genes_desc: "Look up detailed information about a specific gene.",
+                    genes_input_label: "Gene Symbol (e.g., CFTR)",
+                    genes_placeholder: "Enter the official gene symbol...",
+                    proteinas_title: "Proteins",
+                    proteinas_desc: "Find information about a protein, its domains, and variants.",
+                    proteinas_input_label: "Protein Name or UniProt ID",
+                    proteinas_placeholder: "Enter the protein name...",
+                    vias_de_señalizacion_title: "Signaling Pathways",
+                    vias_de_señalizacion_desc: "Explore metabolic signaling pathways and the genes involved.",
+                    vias_de_señalizacion_input_label: "Gene or Signaling Pathway",
+                    vias_de_señalizacion_placeholder: "Enter a gene (e.g., AKT1) or a pathway (e.g., MAPK signaling pathway)...",
+                    glosario_title: "Interactive Genetic Glossary",
+                    glosario_desc: "Define complex genetic terms in a simple way.",
+                    glosario_input_label: "Term to define",
+                    glosario_placeholder: "Enter a genetic term...",
+                    autoevaluacion_title: "Self-Assessment",
+                    autoevaluacion_button: "Generate Self-Assessment",
+                    autoevaluacion_desc: "Test your knowledge on the queried topic.",
+                    print_quiz_button: "Print Quiz"
+                }
+            };
+            
+            const sidebarStructure = [
+                { id: 'assistance', modules: ['asistente', 'simulador', 'reuniones'] },
+                { id: 'analysis', modules: ['evaluador', 'interprete', 'generador'] },
+                { id: 'query', modules: ['genes', 'proteinas', 'vias_de_señalizacion'] },
+                { id: 'education', modules: ['glosario'] }
+            ];
+
+            const modules = {
+                asistente: { icon: 'MessageSquare', prompt_template: (input, lang) => `Eres un asistente virtual experto en genética. Responde la siguiente pregunta en ${lang === 'es' ? 'español' : 'inglés'}: "${input}".\n\nAl final de tu respuesta, SIEMPRE incluye una sección "### ${lang === 'es' ? 'Lecturas Recomendadas' : 'Recommended Reading'}". Proporciona enlaces a artículos de divulgación y publicaciones científicas relevantes.` },
+                evaluador: { icon: 'ShieldCheck', prompt_template: (input, lang) => `Eres un genetista clínico. Evalúa el siguiente caso y responde en ${lang === 'es' ? 'español' : 'inglés'}.\n\n### ${i18n[lang].evaluador_summary_label}:\n${input.clinicalSummary}\n\n### ${i18n[lang].evaluador_history_label}:\n${input.familyHistory}\n\nProporciona riesgo y sugerencia. Luego, añade una sección "### ${lang === 'es' ? 'Lecturas Recomendadas' : 'Recommended Reading'}" con enlaces a artículos sobre las condiciones potenciales.` },
+                interprete: { icon: 'FileText', prompt_template: (input, lang) => `Eres un genetista clínico experto en bioinformática. Analiza el siguiente reporte y responde en ${lang === 'es' ? 'español' : 'inglés'}. Genera un resumen claro y accionable para un médico general, incluyendo Variantes Relevantes, Traducción del Resultado y Sugerencia Clínica.\n\n### Contenido del Reporte:\n${input}\n\nAl final de tu interpretación, SIEMPRE incluye una sección titulada "### ${lang === 'es' ? 'Lecturas Recomendadas' : 'Recommended Reading'}". Proporciona enlaces a artículos de divulgación y publicaciones científicas que expliquen las implicaciones de las variantes encontradas, el gen afectado y las condiciones asociadas.` },
+                genes: { icon: 'Dna', prompt_template: (input, lang) => `Eres un bioinformático experto. Para el gen "${input}", proporciona la siguiente información en ${lang === 'es' ? 'español' : 'inglés'}, citando siempre fuentes confiables como NCBI Gene, Genecards y PubMed:\n1.  **Ubicación Cromosómica**: (ej. 7q31.2)\n2.  **Función Principal**: Un resumen de su rol biológico.\n3.  **Proteína Canónica**: El nombre de la proteína principal y su ID de UniProt.\n4.  **Esquema del Gen**: Describe la estructura básica (nro. de exones/intrones) y enlaza a una representación visual en NCBI Gene.\n5.  **Últimos 10 Abstracts de PubMed**: Busca en PubMed los 10 abstracts más recientes y relevantes sobre este gen y lístalos con su título, autores, PMID y enlace directo.`},
+                proteinas: { icon: 'Shapes', prompt_template: (input, lang) => `Eres un biólogo estructural experto. Para la proteína "${input}", proporciona la siguiente información en ${lang === 'es' ? 'español' : 'inglés'}, utilizando principalmente UniProt y PDB como fuentes:\n1. **Resumen de Función**: ¿Qué hace esta proteína?\n2. **Esquema de la Proteína**: Describe los dominios funcionales principales y las características estructurales. Si es posible, proporciona un enlace a una vista 3D en PDB (si existe) y un enlace a la entrada de UniProt.\n3. **Variantes Principales Informadas**: Lista algunas de las variantes más estudiadas o clínicamente relevantes asociadas con esta proteína (puedes usar ClinVar/UniProt), mencionando su impacto funcional si se conoce.`},
+                vias_de_señalizacion: { icon: 'Waypoints', prompt_template: (input, lang) => `Eres un experto en biología molecular y celular. El usuario ha ingresado: "${input}". Determina si es un gen o una vía de señalización. \n\n- **Si es un gen**: Describe las principales vías de señalización en las que participa, explicando brevemente su rol en cada una. \n- **Si es una vía de señalización**: Proporciona una explicación clara de la vía, sus componentes clave y los principales genes que intervienen en ella.\n\nEn ambos casos, responde en ${lang === 'es' ? 'español' : 'inglés'} y cita fuentes confiables como NIH, OMIM, KEGG, Reactome y Orphanet, incluyendo abstracts o enlaces a artículos relevantes.`},
+                glosario: { icon: 'Book', prompt_template: (input, lang) => `Eres un genetista y educador. Define el siguiente término genético en ${lang === 'es' ? 'español' : 'inglés'} de manera clara y precisa, como si fuera para un glosario profesional pero entendible. Utiliza fuentes confiables como el "Talking Glossary of Genetic Terms" del NIH, pero siéntete libre de complementar con otras fuentes académicas para una definición completa y robusta.\n\nTérmino: "${input}"`},
+                simulador: { icon: 'Users', prompt_template: (input, lang) => `Inicia una simulación de rol (roleplay) de una sesión de consejo genético en ${lang === 'es' ? 'español' : 'inglés'}. Yo soy el profesional, tú eres el paciente/familiar.\n\n**Escenario:**\n${input.scenario}\n\n**Mi primera intervención:**\n"${input.userMessage}"\n\nResponde como el paciente/familiar. (Meta-instrucción: Cuando consideres que la simulación tiene un cierre, añade una sección fuera del rol titulada "### ${lang === 'es' ? 'Lecturas de Apoyo para el Profesional' : 'Supporting Reading for the Professional'}" con enlaces a guías de comunicación, manejo psicosocial y publicaciones sobre la condición del escenario).` },
+                reuniones: { icon: 'Mic', prompt_template: (input, lang) => `Actúas como un experto genetista en una reunión clínica. Responde de forma directa y basada en evidencia a la siguiente pregunta en ${lang === 'es' ? 'español' : 'inglés'}: "${input}"\n\nInmediatamente después, añade una sección "### ${lang === 'es' ? 'Referencias y Lectura Adicional' : 'References and Further Reading'}" con enlaces directos a guías clínicas, revisiones y artículos clave que respalden tu respuesta.` },
+                generador: { icon: 'Mail', prompt_template: (input, lang) => `Eres un genetista clínico. Redacta una carta para un paciente en ${lang === 'es' ? 'español' : 'inglés'} explicando su resultado genético en lenguaje claro y empático.\n\n### ${lang === 'es' ? 'Datos Clínicos' : 'Clinical Data'}:\n${input.clinicalData}\n\n### ${lang === 'es' ? 'Resultado Molecular' : 'Molecular Result'}:\n${input.molecularResult}\n\nGenera la carta.\n\nAl final, añade una sección "### ${lang === 'es' ? 'Recursos Adicionales' : 'Additional Resources'}" con enlaces a asociaciones de pacientes, artículos de divulgación de alta calidad y sitios de confianza sobre la condición.` },
+            };
+
+
+            function updateUIText(lang) {
+                document.getElementById('header-title').innerText = i18n[lang].headerTitle;
+                document.getElementById('lang-label').innerText = i18n[lang].langLabel;
+                document.getElementById('app-title').innerText = i18n[lang].appTitle;
+                document.getElementById('lang-es').classList.toggle('active', lang === 'es');
+                document.getElementById('lang-en').classList.toggle('active', lang === 'en');
+                
+                populateNavMenu(lang);
+                switchModule(currentModuleId);
+            }
+
+            function populateNavMenu(lang) {
+                navMenu.innerHTML = '';
+                sidebarStructure.forEach((section, index) => {
+                    const sectionTitle = document.createElement('h3');
+                    sectionTitle.className = 'px-3 mt-4 mb-2 text-xs font-bold text-slate-500 uppercase tracking-wider';
+                    sectionTitle.textContent = i18n[lang][`section_${section.id}_title`];
+                    navMenu.appendChild(sectionTitle);
+
+                    section.modules.forEach(moduleId => {
+                        const button = document.createElement('button');
+                        button.dataset.moduleId = moduleId;
+                        button.className = 'w-full flex items-center p-2 text-sm rounded-lg text-slate-600 hover:bg-blue-100 hover:text-blue-700 transition-colors duration-150 text-left';
+                        const iconName = modules[moduleId].icon || 'HelpCircle';
+                        const kebabCaseIconName = iconName.replace(/([a-z0-9]|(?=[A-Z]))([A-Z])/g, '$1-$2').toLowerCase();
+                        button.innerHTML = `<i data-lucide="${kebabCaseIconName}" class="w-5 h-5 mr-3 flex-shrink-0"></i><span>${i18n[lang][`${moduleId}_title`]}</span>`;
+                        button.addEventListener('click', () => switchModule(moduleId));
+                        navMenu.appendChild(button);
+                    });
+                    
+                    if (index < sidebarStructure.length - 1) {
+                         const hr = document.createElement('hr');
+                         hr.className = 'my-3';
+                         navMenu.appendChild(hr);
+                    }
+                });
+                lucide.createIcons();
+            }
+
+            function printOutput(elementId, moduleTitle) {
+                const elementToPrint = document.getElementById(elementId);
+                const headerContent = document.getElementById('app-header').innerHTML;
+                const footerContent = document.getElementById('app-footer').innerHTML;
+                const disclaimerText = i18n[currentLanguage].disclaimer;
+                if (!elementToPrint) return;
+
+                const printWindow = window.open('', '', 'height=800,width=800');
+                printWindow.document.write('<html><head><title>' + i18n[currentLanguage].printTitle + '</title>');
+                printWindow.document.write(`<style> body { font-family: 'Inter', sans-serif; margin: 2rem; } header, footer { text-align: center; padding: 1rem; font-size: 0.9rem; } h1 { text-align: center; font-size: 1.5rem; margin-bottom: 2rem; font-weight: 600; } .prose { max-width: 100%; font-size: 1rem; line-height: 1.6; } .prose a { color: #2563eb; } .disclaimer { text-align: center; margin-top: 2rem; font-style: italic; font-size: 0.9rem; color: #b91c1c; } .assessment-list { list-style: none !important; padding-left: 0 !important; } .assessment-list li { padding-left: 0 !important; } .assessment-list li::before { content: none !important; } </style>`);
+                printWindow.document.write('</head><body>');
+                printWindow.document.write(`<header>${headerContent}</header>`);
+                printWindow.document.write(`<h1>${moduleTitle}</h1>`);
+                printWindow.document.write(`<div class="prose">${elementToPrint.innerHTML}</div>`);
+                printWindow.document.write(`<p class="disclaimer">${disclaimerText}</p>`);
+                printWindow.document.write(`<footer>${footerContent}</footer>`);
+                printWindow.document.write('</body></html>');
+                printWindow.document.close();
+                printWindow.focus();
+                
+                setTimeout(() => {
+                    printWindow.print();
+                    printWindow.close();
+                }, 250);
+            }
+
+            function exportOutput(elementId, moduleTitle, moduleId, format = 'png') {
+                const contentElement = document.getElementById(elementId);
+                if (!contentElement || contentElement.innerText.trim() === i18n[currentLanguage].emptyResponse) {
+                    alert(i18n[currentLanguage].exportAlert);
+                    return;
+                }
+                
+                const headerContent = document.getElementById('app-header').innerHTML;
+                const footerContent = document.getElementById('app-footer').innerHTML;
+                const disclaimerText = i18n[currentLanguage].disclaimer;
+
+                const exportContainer = document.createElement('div');
+                exportContainer.style.position = 'absolute';
+                exportContainer.style.left = '-9999px';
+                exportContainer.style.width = '800px';
+                exportContainer.style.padding = '2rem';
+                exportContainer.style.backgroundColor = '#ffffff';
+                exportContainer.style.fontFamily = "'Inter', sans-serif";
+                exportContainer.style.color = '#334155';
+                
+                exportContainer.innerHTML = `
+                    <style> .prose { font-size: 14px; line-height: 1.6; } .prose h3 { font-size: 1.2em; font-weight: 600; } .prose a { color: #2563eb; } .prose ul, .prose ol { margin-left: 1.2rem; } </style>
+                    <header style="text-align: center; padding-bottom: 1rem; font-size: 0.9rem; font-weight: 600;">${headerContent}</header>
+                    <h1 style="text-align: center; font-size: 1.5rem; margin-bottom: 2rem; font-weight: 700;">${moduleTitle}</h1>
+                    <div class="prose">${contentElement.innerHTML}</div>
+                    <p style="text-align: center; margin-top: 2rem; font-style: italic; font-size: 0.9rem; color: #b91c1c;">${disclaimerText}</p>
+                    <footer style="text-align: center; padding-top: 1rem; font-size: 0.8rem;">${footerContent}</footer>
+                `;
+                document.body.appendChild(exportContainer);
+
+                html2canvas(exportContainer, {
+                    scale: 2, useCORS: true,
+                }).then(canvas => {
+                    const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
+                    const imageURL = canvas.toDataURL(mimeType, 1.0);
+                    const downloadLink = document.createElement('a');
+                    downloadLink.href = imageURL;
+                    downloadLink.download = `reporte_${moduleId.toLowerCase()}.${format}`;
+                    document.body.appendChild(downloadLink);
+                    downloadLink.click();
+                    document.body.removeChild(downloadLink);
+                    document.body.removeChild(exportContainer);
+                });
+            }
+
+            async function getAiResponse(prompt) {
+                const apiKey = ""; 
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                const payload = {
+                    contents: [{ role: "user", parts: [{ text: prompt }] }],
+                    generationConfig: { temperature: 0.5, topK: 40, topP: 0.95 }
+                };
+                try {
+                    const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        return `Hubo un error al contactar al asistente de IA. Detalles: ${errorData.error?.message || 'Error desconocido'}`;
+                    }
+                    const result = await response.json();
+                    return result.candidates?.[0]?.content?.parts?.[0]?.text || i18n[currentLanguage].emptyResponse;
+                } catch (error) {
+                    return "Error de conexión con el servicio de IA. Verifique su conexión a internet y la consola para más detalles.";
+                }
+            }
+            
+            function showLoading(outputElement) {
+                 outputElement.innerHTML = `<div class="flex flex-col items-center justify-center p-10 bg-slate-50 rounded-lg"><div class="loader"></div><p class="mt-4 text-slate-600">${i18n[currentLanguage].loadingText}</p></div>`;
+            }
+
+            function createModuleHTML(moduleId) {
+                const lang = currentLanguage;
+                let inputFields = '';
+                switch(moduleId) {
+                    case 'evaluador':
+                        inputFields = `<div class="space-y-4"><div><label for="${moduleId}-clinicalSummary" class="block text-sm font-medium text-slate-700 mb-1">${i18n[lang].evaluador_summary_label}</label><textarea id="${moduleId}-clinicalSummary" rows="6" class="w-full p-3 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="${i18n[lang].evaluador_summary_placeholder}"></textarea></div><div><label for="${moduleId}-familyHistory" class="block text-sm font-medium text-slate-700 mb-1">${i18n[lang].evaluador_history_label}</label><textarea id="${moduleId}-familyHistory" rows="4" class="w-full p-3 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="${i18n[lang].evaluador_history_placeholder}"></textarea></div></div>`;
+                        break;
+                    case 'interprete':
+                        inputFields = `<div><label for="${moduleId}-report" class="block text-sm font-medium text-slate-700 mb-1">${i18n[lang].interprete_input_label}</label><textarea id="${moduleId}-report" rows="10" class="w-full p-3 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="${i18n[lang].interprete_placeholder}"></textarea></div>`;
+                        break;
+                    case 'simulador':
+                         inputFields = `<div class="space-y-4"><div><label for="${moduleId}-scenario" class="block text-sm font-medium text-slate-700 mb-1">${i18n[lang].simulador_scenario_label}</label><select id="${moduleId}-scenario" class="w-full p-3 border border-slate-300 rounded-md bg-white"><option value="explicar_resultado_recesivo">Explicar resultado recesivo a padres</option><option value="comunicar_resultado_incierto">Comunicar resultado incierto (VUS)</option><option value="comunicar_estado_portador">Informar estado de portador</option></select></div><div><label for="${moduleId}-userMessage" class="block text-sm font-medium text-slate-700 mb-1">${i18n[lang].simulador_message_label}</label><textarea id="${moduleId}-userMessage" rows="3" class="w-full p-3 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="${i18n[lang].simulador_message_placeholder}"></textarea></div></div>`;
+                        break;
+                    case 'generador':
+                        inputFields = `<div class="space-y-4"><div><label for="${moduleId}-clinicalData" class="block text-sm font-medium text-slate-700 mb-1">${i18n[lang].generador_clinical_label}</label><textarea id="${moduleId}-clinicalData" rows="4" class="w-full p-3 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="${i18n[lang].generador_clinical_placeholder}"></textarea></div><div><label for="${moduleId}-molecularResult" class="block text-sm font-medium text-slate-700 mb-1">${i18n[lang].generador_molecular_label}</label><textarea id="${moduleId}-molecularResult" rows="6" class="w-full p-3 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="${i18n[lang].generador_molecular_placeholder}"></textarea></div></div>`;
+                        break;
+                    default:
+                        inputFields = `<div><label for="${moduleId}-input" class="block text-sm font-medium text-slate-700 mb-1">${i18n[lang][`${moduleId}_input_label`]}</label><textarea id="${moduleId}-input" rows="4" class="w-full p-3 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="${i18n[lang][`${moduleId}_placeholder`]}"></textarea></div>`;
+                }
+
+                let assessmentSection = '';
+                if (['genes', 'proteinas', 'vias_de_señalizacion'].includes(moduleId)) {
+                    assessmentSection = `
+                        <div class="bg-white p-6 rounded-lg shadow mt-6">
+                            <h3 class="text-lg font-semibold text-slate-800 mb-4">${i18n[lang].autoevaluacion_title}</h3>
+                            <p class="text-sm text-slate-600 mb-4">${i18n[lang].autoevaluacion_desc}</p>
+                            <button id="assessment-btn-${moduleId}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50">
+                                <i data-lucide="graduation-cap" class="w-5 h-5 mr-2"></i>
+                                ${i18n[lang].autoevaluacion_button}
+                            </button>
+                            <div id="assessment-output-${moduleId}" class="mt-4"></div>
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div id="module-${moduleId}" class="space-y-6">
+                        <div class="bg-white p-6 rounded-lg shadow"><h2 class="text-2xl font-bold text-blue-700 mb-2">${i18n[lang][`${moduleId}_title`]}</h2><p class="text-slate-600">${i18n[lang][`${moduleId}_desc`]}</p></div>
+                        <div class="bg-white p-6 rounded-lg shadow"><h3 class="text-lg font-semibold text-slate-800 mb-4">Entrada de Datos</h3>${inputFields}<button id="submit-${moduleId}" class="mt-4 inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">${i18n[lang].submitButton}</button></div>
+                        <div class="bg-white p-6 rounded-lg shadow">
+                            <div class="flex justify-between items-center mb-4"><h3 class="text-lg font-semibold text-slate-800">${i18n[lang].responseTitle}</h3><div class="flex items-center gap-2"><button id="print-${moduleId}" title="${i18n[lang].printTitle}" class="p-2 text-slate-500 hover:text-blue-600 rounded-lg hover:bg-slate-100"><i data-lucide="printer" class="w-5 h-5"></i></button><button id="export-png-${moduleId}" title="${i18n[lang].exportPngTitle}" class="p-2 text-slate-500 hover:text-blue-600 rounded-lg hover:bg-slate-100"><i data-lucide="image" class="w-5 h-5"></i></button><button id="export-jpg-${moduleId}" title="${i18n[lang].exportJpgTitle}" class="p-2 text-slate-500 hover:text-blue-600 rounded-lg hover:bg-slate-100"><i data-lucide="file-image" class="w-5 h-5"></i></button></div></div>
+                            <div id="output-${moduleId}" class="prose max-w-none text-slate-700 bg-slate-50 p-4 rounded-md"><p class="text-slate-500">${i18n[lang].emptyResponse}</p></div>
+                        </div>
+                        ${assessmentSection}
+                    </div>
+                `;
+            }
+
+            function switchModule(moduleId) {
+                currentModuleId = moduleId;
+                contentContainer.innerHTML = createModuleHTML(moduleId);
+                lucide.createIcons();
+                
+                document.querySelectorAll('#nav-menu button').forEach(button => {
+                    const isActive = button.dataset.moduleId === moduleId;
+                    button.classList.toggle('bg-blue-100', isActive);
+                    button.classList.toggle('text-blue-700', isActive);
+                    button.classList.toggle('font-semibold', isActive);
+                });
+
+                const submitButton = document.getElementById(`submit-${moduleId}`);
+                const outputElement = document.getElementById(`output-${moduleId}`);
+                const printButton = document.getElementById(`print-${moduleId}`);
+                const exportPngButton = document.getElementById(`export-png-${moduleId}`);
+                const exportJpgButton = document.getElementById(`export-jpg-${moduleId}`);
+
+                submitButton.addEventListener('click', async () => {
+                    let userInput;
+                    switch(moduleId) {
+                        case 'evaluador': userInput = { clinicalSummary: document.getElementById(`evaluador-clinicalSummary`).value, familyHistory: document.getElementById(`evaluador-familyHistory`).value }; break;
+                        case 'generador': userInput = { clinicalData: document.getElementById(`generador-clinicalData`).value, molecularResult: document.getElementById(`generador-molecularResult`).value }; break;
+                        case 'simulador': userInput = { scenario: document.getElementById(`simulador-scenario`).value, userMessage: document.getElementById(`simulador-userMessage`).value }; break;
+                        case 'interprete': userInput = document.getElementById('interprete-report').value; break;
+                        default: userInput = document.getElementById(`${moduleId}-input`).value; break;
+                    }
+
+                    if ((typeof userInput === 'string' && !userInput.trim()) || (typeof userInput === 'object' && Object.values(userInput).some(v => !v.trim()))) {
+                        outputElement.innerHTML = `<p class="text-red-600 font-semibold">${i18n[currentLanguage].emptyInputError}</p>`;
+                        return;
+                    }
+                    showLoading(outputElement);
+                    const prompt = modules[moduleId].prompt_template(userInput, currentLanguage);
+                    const aiResponse = await getAiResponse(prompt);
+                    outputElement.innerHTML = marked.parse(aiResponse || '');
+                });
+
+                printButton.addEventListener('click', () => printOutput(`output-${moduleId}`, i18n[currentLanguage][`${moduleId}_title`]));
+                exportPngButton.addEventListener('click', () => exportOutput(`output-${moduleId}`, i18n[currentLanguage][`${moduleId}_title`], moduleId, 'png'));
+                exportJpgButton.addEventListener('click', () => exportOutput(`output-${moduleId}`, i18n[currentLanguage][`${moduleId}_title`], moduleId, 'jpeg'));
+
+                if (['genes', 'proteinas', 'vias_de_señalizacion'].includes(moduleId)) {
+                    const assessmentBtn = document.getElementById(`assessment-btn-${moduleId}`);
+                    assessmentBtn.addEventListener('click', async () => {
+                        const topic = document.getElementById(`${moduleId}-input`).value;
+                        if (!topic.trim()) {
+                            alert(i18n[currentLanguage].emptyInputError);
+                            return;
+                        }
+                        const assessmentOutput = document.getElementById(`assessment-output-${moduleId}`);
+                        showLoading(assessmentOutput);
+                        const assessmentPrompt = `Genera una autoevaluación en ${currentLanguage === 'es' ? 'español' : 'inglés'} sobre "${topic}". Debe incluir:\n1. **10 preguntas multiple choice** con 4 opciones. Indica la respuesta correcta con un asterisco (*).\n2. **2 temas para investigar y desarrollar** con recomendaciones.\nFormatea las opciones de cada pregunta en una nueva línea y sin viñetas.`;
+                        const assessmentResponse = await getAiResponse(assessmentPrompt);
+                        
+                        const parsedHtml = marked.parse(assessmentResponse || '');
+                        assessmentOutput.innerHTML = `<div class="prose max-w-none">${parsedHtml}</div><button id="print-quiz-btn" class="mt-4 inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50">${i18n[currentLanguage].print_quiz_button}</button>`;
+                        
+                        assessmentOutput.querySelectorAll('ul').forEach(ul => ul.classList.add('assessment-list'));
+                        
+                        document.getElementById('print-quiz-btn').addEventListener('click', () => printOutput(`assessment-output-${moduleId}`, `${i18n[currentLanguage].autoevaluacion_title} sobre ${topic}`));
+                    });
+                }
+            }
+
+            // --- INICIALIZACIÓN ---
+            document.getElementById('lang-es').addEventListener('click', () => {
+                if (currentLanguage === 'es') return;
+                currentLanguage = 'es';
+                updateUIText(currentLanguage);
+            });
+            document.getElementById('lang-en').addEventListener('click', () => {
+                if (currentLanguage === 'en') return;
+                currentLanguage = 'en';
+                updateUIText(currentLanguage);
+            });
+
+            // Carga directa de la app
+            updateUIText(currentLanguage);
+        });
+    </script>
+</body>
+</html>
